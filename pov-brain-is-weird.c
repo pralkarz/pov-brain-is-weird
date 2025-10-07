@@ -22,6 +22,7 @@ typedef enum Screen {
     LINES,
     CLOCK,
     DVD,
+    CUBE,
 } Screen;
 
 typedef struct {
@@ -51,6 +52,17 @@ typedef struct {
     Vector2 origin;
 } DvdState;
 
+typedef struct {
+    Vector3 points[8];
+    Vector2 projectedPoints[8];
+    double rollAngle;
+    double pitchAngle;
+    double yawAngle;
+    double rollStep;
+    double pitchStep;
+    double yawStep;
+} CubeState;
+
 int getSign(int n) {
     if (n > 0)
         return 1;
@@ -62,6 +74,46 @@ int getSign(int n) {
 
 int euclideanModulo(int a, int b) {
     return (a % b + b) % b;
+}
+
+Vector3 rotate(Vector3 p, Vector3 rotMat[3]) {
+    Vector3 result = {
+        .x = rotMat[0].x * p.x + rotMat[0].y * p.y + rotMat[0].z * p.z,
+        .y = rotMat[1].x * p.x + rotMat[1].y * p.y + rotMat[1].z * p.z,
+        .z = rotMat[2].x * p.x + rotMat[2].y * p.y + rotMat[2].z * p.z,
+    };
+    return result;
+}
+
+Vector2 project(Vector3 p, double rollAngle, double pitchAngle, double yawAngle) {
+    Vector3 rotMatYaw[3] = {
+        {cos(yawAngle), -sin(yawAngle), 0},
+        {sin(yawAngle), cos(yawAngle), 0},
+        {0, 0, 1}
+    };
+
+    Vector3 rotMatPitch[3] = {
+        {cos(pitchAngle), 0, sin(pitchAngle)},
+        {0, 1, 0},
+        {-sin(pitchAngle), 0, cos(pitchAngle)}
+    };
+
+    Vector3 rotMatRoll[3] = {
+        {1, 0, 0},
+        {0, cos(rollAngle), -sin(rollAngle)},
+        {0, sin(rollAngle), cos(rollAngle)}
+    };
+
+    Vector3 rotated = rotate(p, rotMatYaw);
+    rotated = rotate(rotated, rotMatPitch);
+    rotated = rotate(rotated, rotMatRoll);
+
+    Vector2 projected = {
+        rotated.x,
+        rotated.y
+    };
+
+    return projected;
 }
 
 void initGrid(bool grid[ROWS][COLS]) {
@@ -81,8 +133,8 @@ void drawGrid(bool grid[ROWS][COLS]) {
     }
 }
 
-const char *tileNames[] = {"lines", "clock", "dvd", "placeholder", "placeholder", "placeholder"};
-const Screen screens[] = {LINES, CLOCK, DVD, MENU, MENU, MENU};
+const char *tileNames[] = {"lines", "clock", "dvd", "cube", "placeholder", "placeholder"};
+const Screen screens[] = {LINES, CLOCK, DVD, CUBE, MENU, MENU};
 void drawMenuTiles(MenuState menuState) {
     float outlineWidth = (WINDOW_WIDTH - (menuState.cols + 1) * menuState.spacing) / menuState.cols;
     float outlineHeight = (WINDOW_HEIGHT - menuState.titleBarHeight - (menuState.rows + 1) * menuState.spacing) / menuState.rows;
@@ -280,6 +332,31 @@ int main(void) {
     int originY = GetRandomValue(0, ROWS - dvdState.maskHeight);
     dvdState.origin = (Vector2){originX, originY};
 
+    CubeState cubeState = {
+        .points = {
+            {-1, -1,  1},
+            { 1, -1,  1},
+            { 1,  1,  1},
+            {-1,  1,  1},
+            {-1, -1, -1},
+            { 1, -1, -1},
+            { 1,  1, -1},
+            {-1,  1, -1}},
+        .projectedPoints = {{0}},
+        // from -2 to 2 radians with a 0.1 step
+        .rollAngle = GetRandomValue(-20, 20) / 20.0,
+        .pitchAngle = GetRandomValue(-20, 20) / 20.0,
+        .yawAngle = GetRandomValue(-20, 20) / 20.0,
+        // from 0.01 to 0.05 with a 0.001 step
+        .rollStep = GetRandomValue(10, 50) / 1000.0,
+        .pitchStep = GetRandomValue(10, 50) / 1000.0,
+        .yawStep = GetRandomValue(10, 50) / 1000.0,
+    };
+
+    printf("%f", cubeState.rollStep);
+    printf("%f", cubeState.pitchStep);
+    printf("%f", cubeState.yawStep);
+        
     bool paused = false;
     unsigned int frameCount = 0;
     while (!WindowShouldClose()) {
@@ -305,6 +382,7 @@ int main(void) {
             case LINES:
             case CLOCK:
             case DVD:
+            case CUBE:
             default: {
                 if (IsKeyPressed(KEY_ESCAPE)) currentScreen = MENU;
 
@@ -382,6 +460,54 @@ int main(void) {
                 drawGrid(grid);
             } break;
 
+            case CUBE: {
+                if (!paused) {
+                    for (int i = 0; i < 8; i++) {
+                        Vector2 projectedPoint = project(cubeState.points[i], cubeState.rollAngle, cubeState.pitchAngle, cubeState.yawAngle);
+                        
+                        projectedPoint.x = floor(projectedPoint.x * ROWS / 4);
+                        projectedPoint.y = floor(projectedPoint.y * ROWS / 4);
+                        projectedPoint.x += COLS / 2;
+                        projectedPoint.y += ROWS / 2;
+
+                        cubeState.projectedPoints[i] = projectedPoint;
+                    }
+
+                    lineV(grid, cubeState.projectedPoints[0], cubeState.projectedPoints[1]);
+                    lineV(grid, cubeState.projectedPoints[1], cubeState.projectedPoints[2]);
+                    lineV(grid, cubeState.projectedPoints[2], cubeState.projectedPoints[3]);
+                    lineV(grid, cubeState.projectedPoints[3], cubeState.projectedPoints[0]);
+
+                    lineV(grid, cubeState.projectedPoints[4], cubeState.projectedPoints[5]);
+                    lineV(grid, cubeState.projectedPoints[5], cubeState.projectedPoints[6]);
+                    lineV(grid, cubeState.projectedPoints[6], cubeState.projectedPoints[7]);
+                    lineV(grid, cubeState.projectedPoints[7], cubeState.projectedPoints[4]);
+
+                    lineV(grid, cubeState.projectedPoints[0], cubeState.projectedPoints[4]);
+                    lineV(grid, cubeState.projectedPoints[1], cubeState.projectedPoints[5]);
+                    lineV(grid, cubeState.projectedPoints[2], cubeState.projectedPoints[6]);
+                    lineV(grid, cubeState.projectedPoints[3], cubeState.projectedPoints[7]);
+
+                    cubeState.rollAngle += cubeState.rollStep;
+                    cubeState.pitchAngle += cubeState.pitchStep;
+                    cubeState.yawAngle += cubeState.yawStep;
+
+                    if (cubeState.rollAngle < -2 * PI || cubeState.rollAngle > 2 * PI) {
+                        cubeState.rollStep *= -1;
+                    }
+
+                    if (cubeState.pitchAngle < -2 * PI || cubeState.pitchAngle > 2 * PI) {
+                        cubeState.pitchStep *= -1;
+                    }
+
+                    if (cubeState.yawAngle < -2 * PI || cubeState.yawAngle > 2 * PI) {
+                        cubeState.yawStep *= -1;
+                    }
+                }
+
+                drawGrid(grid);
+            } break;
+
             default: {
                 DrawText("you shouldn't be here",
                          WINDOW_WIDTH / 2 - MeasureText("you shouldn't be here", 20) / 2, WINDOW_HEIGHT / 2 - 10,
@@ -393,6 +519,8 @@ int main(void) {
     }
 
     CloseWindow();
+
+    free(dvdState.mask);
 
     return 0;
 }
