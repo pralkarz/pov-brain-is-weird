@@ -4,7 +4,7 @@ simple toy to showcase the persistence of vision phenomenon discussed in [this v
 
 try starting the below demo. when it's running, you will seemingly notice lines flickering on the screen, but they disappear as soon as you pause or take a screenshot.
 
-https://github.com/ziebam/pov-brain-is-weird/assets/31964869/1f517c27-9b61-4cb3-a452-a46d5d4b7cea
+https://github.com/ziebam/pov-brain-is-weird/assets/31964869/b8616c97-452e-4ef5-aabc-a53f59d0165d
 
 # build
 
@@ -30,7 +30,7 @@ keybindings:
 
 `nob` -- amazing, minimalist build system by [Tsoding](https://github.com/tsoding), license included in `nob.h`
 
-`raylib` -- amazing, minimalist game-making library, [license](./raylib/raylib-5.0/LICENSE) included in the repository as it's built statically
+`raylib` -- amazing, minimalist game-making library, [license](./raylib/raylib-5.0/LICENSE) vendored in the repository
 
 window icon -- taken from [Tsoding](https://github.com/tsoding)'s stream/Discord server with his persmission: [click!](https://twitchemotes.com/channels/110240192)
 
